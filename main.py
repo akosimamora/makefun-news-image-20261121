@@ -34,24 +34,29 @@ def fail(message):
     sys.exit("entry check failed: " + message)
 
 
-def read_image():
-    """Read the bundled image and check it is the expected file."""
-    with open(IMAGE, "rb") as handle:
+def verify_png(path):
+    """Check that `path` holds the verified front page: a PNG of at most
+    1 MiB, 1024x1024, and byte-identical to the image that was drawn and
+    checked. Returns the image bytes, or exits with a clear error on any
+    mismatch."""
+    with open(path, "rb") as handle:
         data = handle.read()
+    if len(data) > 1024 * 1024:
+        fail("%s is %d bytes, over the 1 MiB limit" % (path, len(data)))
     if len(data) != WANT_BYTES:
-        fail("entry.png is %d bytes, expected %d" % (len(data), WANT_BYTES))
+        fail("%s is %d bytes, expected %d" % (path, len(data), WANT_BYTES))
     if data[:8] != MAGIC:
-        fail("entry.png does not begin with the PNG magic bytes")
+        fail("%s does not begin with the PNG magic bytes" % path)
     # In a PNG the width and height sit at bytes 16..24 as two big-endian
     # 32-bit integers, right after the 8-byte magic and the IHDR header.
     width = int.from_bytes(data[16:20], "big")
     height = int.from_bytes(data[20:24], "big")
     if (width, height) != (WANT_W, WANT_H):
-        fail("entry.png is %dx%d, expected %dx%d"
-             % (width, height, WANT_W, WANT_H))
+        fail("%s is %dx%d, expected %dx%d"
+             % (path, width, height, WANT_W, WANT_H))
     digest = hashlib.sha256(data).hexdigest()
     if digest != WANT_SHA256:
-        fail("entry.png sha256 mismatch, got %s" % digest)
+        fail("%s sha256 mismatch, got %s" % (path, digest))
     return data
 
 
@@ -63,7 +68,7 @@ def output_dir():
 
 
 def main():
-    data = read_image()
+    data = verify_png(IMAGE)
     dest = os.path.join(output_dir(), "entry.png")
     shutil.copyfile(IMAGE, dest)
     print("wrote %s (%d bytes)" % (dest, len(data)))
