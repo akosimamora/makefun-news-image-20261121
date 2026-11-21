@@ -5,7 +5,9 @@ The page itself is drawn at build time (PIL + DejaVu, see build/draw2.py)
 from the verified stories of Saturday 21 November 2026, and shipped in this
 repository as entry.png. Round 2 rebuilt the drawn scenes as composed
 settings — a Lima street, a COP31 hall, the Las Vegas strip — while the
-stories, numbers and layout stayed exactly as submitted in round 1. This
+stories, numbers and layout stayed exactly as submitted in round 1. Round 3
+kept those scenes and polished the first glance instead: the date alone as
+the masthead at 56 pt, fuller grid pictures, and a sharper map. This
 program only carries that image into the grader's output directory.
 
 Why a copy instead of a redraw: the grader's Python is standard library
@@ -18,14 +20,13 @@ Standard library only. No network, no clock, no randomness.
 """
 import hashlib
 import os
-import shutil
 import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 IMAGE = os.path.join(ROOT, "entry.png")
 
-WANT_SHA256 = "cc1b2ed2544374354fdc53ee08aee517b8105c8cb4b3ff45ddfdff4ddaa087ed"
-WANT_BYTES = 171131
+WANT_SHA256 = "8bee60784f1dbc18f224aa9df6b75b68335d868cdd4f56294696319d602f7722"
+WANT_BYTES = 174901
 WANT_W, WANT_H = 1024, 1024
 MAGIC = b"\x89PNG\r\n\x1a\n"
 
@@ -67,11 +68,25 @@ def output_dir():
     return target
 
 
+def deliver(data):
+    """Write the verified `data` to the grader's output file, then read
+    the file back and confirm it is byte-identical to what was checked.
+    A copy that silently truncated or corrupted would otherwise pass
+    unnoticed, so the written file's own sha256 is compared too."""
+    dest = os.path.join(output_dir(), "entry.png")
+    with open(dest, "wb") as handle:
+        handle.write(data)
+    with open(dest, "rb") as handle:
+        written = handle.read()
+    if hashlib.sha256(written).hexdigest() != WANT_SHA256:
+        fail("wrote %s but its sha256 does not match the verified image"
+             % dest)
+    print("wrote %s (%d bytes)" % (dest, len(written)))
+
+
 def main():
     data = verify_png(IMAGE)
-    dest = os.path.join(output_dir(), "entry.png")
-    shutil.copyfile(IMAGE, dest)
-    print("wrote %s (%d bytes)" % (dest, len(data)))
+    deliver(data)
 
 
 if __name__ == "__main__":
