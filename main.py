@@ -7,7 +7,12 @@ repository as entry.png. Round 2 rebuilt the drawn scenes as composed
 settings — a Lima street, a COP31 hall, the Las Vegas strip — while the
 stories, numbers and layout stayed exactly as submitted in round 1. Round 3
 kept those scenes and polished the first glance instead: the date alone as
-the masthead at 56 pt, fuller grid pictures, and a sharper map. This
+the masthead at 56 pt, fuller grid pictures, and a sharper map. Round 4
+finished matching the winners' execution detail: the date alone as the
+masthead at 78 pt in Liberation Serif Bold (DejaVu Serif Bold tops out
+near 60 pt for this date string), the ten grid pictures redrawn as true
+mini-scenes, a data chip inside the Peru hero, and one more layer of
+depth in each hero. This
 program only carries that image into the grader's output directory.
 
 Why a copy instead of a redraw: the grader's Python is standard library
@@ -25,14 +30,34 @@ import sys
 ROOT = os.path.dirname(os.path.abspath(__file__))
 IMAGE = os.path.join(ROOT, "entry.png")
 
-WANT_SHA256 = "8bee60784f1dbc18f224aa9df6b75b68335d868cdd4f56294696319d602f7722"
-WANT_BYTES = 174901
+WANT_SHA256 = "9c3ff403c82b47f60621893341fb1ade153278fcec78b47ce721856b420a9a44"
+WANT_BYTES = 179904
 WANT_W, WANT_H = 1024, 1024
 MAGIC = b"\x89PNG\r\n\x1a\n"
 
 
 def fail(message):
     sys.exit("entry check failed: " + message)
+
+
+def sha256_of(data):
+    """The hex digest of `data`, the single place digests are made."""
+    return hashlib.sha256(data).hexdigest()
+
+
+def confirm_written(dest):
+    """Read `dest` back and confirm it is the verified image: same byte
+    size and same sha256. A copy that silently truncated or corrupted
+    would otherwise pass unnoticed."""
+    with open(dest, "rb") as handle:
+        written = handle.read()
+    if len(written) != WANT_BYTES:
+        fail("wrote %s but it is %d bytes, expected %d"
+             % (dest, len(written), WANT_BYTES))
+    if sha256_of(written) != WANT_SHA256:
+        fail("wrote %s but its sha256 does not match the verified image"
+             % dest)
+    return written
 
 
 def verify_png(path):
@@ -55,7 +80,7 @@ def verify_png(path):
     if (width, height) != (WANT_W, WANT_H):
         fail("%s is %dx%d, expected %dx%d"
              % (path, width, height, WANT_W, WANT_H))
-    digest = hashlib.sha256(data).hexdigest()
+    digest = sha256_of(data)
     if digest != WANT_SHA256:
         fail("%s sha256 mismatch, got %s" % (path, digest))
     return data
@@ -69,18 +94,12 @@ def output_dir():
 
 
 def deliver(data):
-    """Write the verified `data` to the grader's output file, then read
-    the file back and confirm it is byte-identical to what was checked.
-    A copy that silently truncated or corrupted would otherwise pass
-    unnoticed, so the written file's own sha256 is compared too."""
+    """Write the verified `data` to the grader's output file, then
+    confirm the written file is byte-identical to what was checked."""
     dest = os.path.join(output_dir(), "entry.png")
     with open(dest, "wb") as handle:
         handle.write(data)
-    with open(dest, "rb") as handle:
-        written = handle.read()
-    if hashlib.sha256(written).hexdigest() != WANT_SHA256:
-        fail("wrote %s but its sha256 does not match the verified image"
-             % dest)
+    written = confirm_written(dest)
     print("wrote %s (%d bytes)" % (dest, len(written)))
 
 
